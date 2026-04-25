@@ -352,10 +352,11 @@ function checkPlayerAiCollision() {
       for (let i = 5; i < snake.length; i++) {
         const dx = aiHead.x - snake[i].x, dy = aiHead.y - snake[i].y;
         if (dx * dx + dy * dy < 8 * 8) {
-          // AI hits player body — AI dies, player gains
-          score += Math.floor(ai.score / 2);
+          // AI hits player body — AI dies and turns into food
+          for (const seg of ai.body) {
+            foods.push({ x: seg.x, y: seg.y, r: 2 + Math.random() * 3, color: `hsl(${Math.random() * 360}, 90%, 60%)` });
+          }
           aiSnakes = aiSnakes.filter(a => a !== ai);
-          spawnAiSnake();
           return;
         }
       }
