@@ -423,7 +423,12 @@ function update() {
     }
   }
 
-  snake.pop(); // maintain constant length
+  // Normal: eat food → grow. Boosting: length stays constant
+  if (boosting) {
+    snake.pop(); // always remove tail when boosting
+  } else {
+    while (snake.length > score) snake.pop();
+  }
 
   // Update AI
   for (let i = aiSnakes.length - 1; i >= 0; i--) {
