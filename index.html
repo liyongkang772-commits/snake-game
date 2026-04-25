@@ -186,7 +186,6 @@ function update() {
   if (newHead.y > WORLD_H) newHead.y -= WORLD_H;
 
   // Self collision (scale with body size)
-  const sizeScale = 1 + (score - 10) * 0.02;
   const collisionR = 8 * sizeScale;
   for (let i = 5; i < snake.length; i++) {
     const dx = newHead.x - snake[i].x;
