@@ -207,7 +207,11 @@ function spawnFood() {
   });
 }
 
-// === AI Logic ===
+function aiToFood(ai) {
+  for (const seg of ai.body) {
+    foods.push({ x: seg.x, y: seg.y, r: 6, color: ai.color });
+  }
+}
 function updateAi(ai) {
   ai.tick++;
   const head = ai.body[0];
@@ -338,6 +342,7 @@ function checkPlayerAiCollision() {
           if (score > ai.score) {
             // Player eats AI
             score += ai.score;
+            aiToFood(ai);
             aiSnakes = aiSnakes.filter(a => a !== ai);
             spawnAiSnake();
             return; // processed one collision
@@ -362,9 +367,7 @@ function checkPlayerAiCollision() {
         const dx = aiHead.x - snake[i].x, dy = aiHead.y - snake[i].y;
         if (dx * dx + dy * dy < 8 * 8) {
           // AI hits player body — AI dies and turns into food
-          for (const seg of ai.body) {
-            foods.push({ x: seg.x, y: seg.y, r: 2 + Math.random() * 3, color: `hsl(${Math.random() * 360}, 90%, 60%)` });
-          }
+          aiToFood(ai);
           aiSnakes = aiSnakes.filter(a => a !== ai);
           return;
         }
@@ -452,6 +455,7 @@ function update() {
   for (let i = aiSnakes.length - 1; i >= 0; i--) {
     const died = updateAi(aiSnakes[i]);
     if (died) {
+      aiToFood(aiSnakes[i]);
       aiSnakes.splice(i, 1);
       spawnAiSnake();
     }
@@ -493,8 +497,6 @@ function drawAi(ai) {
     ctx.fillStyle = ai.color;
     ctx.beginPath();
     ctx.arc(hx, hy, segR, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.arc(hx, hy, 7, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.shadowBlur = 0;
