@@ -120,7 +120,7 @@
   <button id="restartBtn">重新开始</button>
   <button id="pauseBtn">暂停</button>
 </div>
-<div id="hint">🖱 移动鼠标控制方向 · 按住左键加速 · 空格暂停</div>
+<div id="hint">🖱 移动鼠标控制方向 · 按住左键加速(消耗积分) · 空格暂停</div>
 
 <script>
 const canvas = document.getElementById('game');
@@ -181,6 +181,9 @@ let snake, foods, mouseX, mouseY, score, gameOver, paused;
 let angle, speed;
 let camera;
 let boosting = false;
+let boostTick = 0;
+
+const INIT_SCORE = 10;
 
 let hintTimer;
 
@@ -196,7 +199,8 @@ function init() {
   for (let i = 0; i < 10; i++) {
     snake.push({ x: sx - Math.cos(angle) * i * 6, y: sy - Math.sin(angle) * i * 6 });
   }
-  score = 10;
+  score = INIT_SCORE;
+  boostTick = 0;
 
   mouseX = W / 2;
   mouseY = H / 2;
@@ -226,7 +230,22 @@ function spawnFood() {
 function update() {
   if (paused || gameOver) return;
 
-  const sizeScale = 1 + (score - 10) * 0.02;
+  const sizeScale = 1 + (score - INIT_SCORE) * 0.02;
+
+  // Boost consumes points
+  if (boosting) {
+    if (score <= INIT_SCORE) {
+      boosting = false;
+      boostTick = 0;
+    } else {
+      boostTick++;
+      if (boostTick >= 8) {
+        boostTick = 0;
+        score--;
+        renderLeaderboard(score);
+      }
+    }
+  }
 
   const head = snake[0];
   const worldMouseX = mouseX + camera.x;
@@ -318,7 +337,7 @@ function draw() {
   ctx.shadowBlur = 0;
 
   // Body size grows with score
-  const sizeScale = 1 + (score - 10) * 0.02;
+  const sizeScale = 1 + (score - INIT_SCORE) * 0.02;
   // Snake body
   for (let i = snake.length - 1; i >= 0; i--) {
     const seg = snake[i];
