@@ -13,7 +13,6 @@
   }
   canvas {
     display: block;
-    cursor: none;
   }
 
   /* HUD overlay */
@@ -89,7 +88,7 @@
   <button id="restartBtn">重新开始</button>
   <button id="pauseBtn">暂停</button>
 </div>
-<div id="hint">🖱 移动鼠标控制方向 · 空格暂停</div>
+<div id="hint">🖱 移动鼠标控制方向 · 按住左键加速 · 空格暂停</div>
 
 <script>
 const canvas = document.getElementById('game');
@@ -112,6 +111,7 @@ resize();
 let snake, foods, mouseX, mouseY, score, highScore, gameOver, paused;
 let angle, speed;
 let camera;
+let boosting = false;
 
 let hintTimer;
 
@@ -171,9 +171,10 @@ function update() {
   while (diff < -Math.PI) diff += Math.PI * 2;
   angle += diff * 0.1;
 
+  const currentSpeed = boosting ? speed * 2.2 : speed;
   const newHead = {
-    x: head.x + Math.cos(angle) * speed,
-    y: head.y + Math.sin(angle) * speed
+    x: head.x + Math.cos(angle) * currentSpeed,
+    y: head.y + Math.sin(angle) * currentSpeed
   };
 
   // World wrap
@@ -302,6 +303,9 @@ function draw() {
 
   ctx.shadowBlur = 0;
 
+  // Boost effect
+  drawBoostFX();
+
   // Overlay
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -329,6 +333,32 @@ canvas.addEventListener('mousemove', e => {
   mouseX = e.clientX;
   mouseY = e.clientY;
 });
+
+canvas.addEventListener('mousedown', e => {
+  if (e.button === 0) boosting = true;
+});
+canvas.addEventListener('mouseup', e => {
+  if (e.button === 0) boosting = false;
+});
+canvas.addEventListener('mouseleave', () => { boosting = false; });
+
+// Also show boost visual feedback
+function drawBoostFX() {
+  if (!boosting || paused || gameOver) return;
+  const head = snake[0];
+  if (!head) return;
+  const hx = head.x - camera.x;
+  const hy = head.y - camera.y;
+  ctx.shadowBlur = 0;
+  for (let i = 3; i > 0; i--) {
+    const bx = hx - Math.cos(angle) * i * 10;
+    const by = hy - Math.sin(angle) * i * 10;
+    ctx.fillStyle = `rgba(0, 210, 255, ${0.15 - i * 0.04})`;
+    ctx.beginPath();
+    ctx.arc(bx, by, 5 - i, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
 
 document.addEventListener('keydown', e => {
   if (e.key === ' ' || e.key === 'Escape') {
