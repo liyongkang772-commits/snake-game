@@ -154,7 +154,7 @@ function spawnAiSnake() {
   }
   aiSnakes.push({
     body, angle: ang, score: len,
-    speed: 2 + Math.random() * 0.8,
+    speed: 2 + Math.random() * 1.5,
     color: AI_COLORS[idx % AI_COLORS.length],
     name: AI_NAMES[idx % AI_NAMES.length],
     targetFood: null,
@@ -276,35 +276,44 @@ function updateAi(ai) {
   while (diff < -Math.PI) diff += Math.PI * 2;
   ai.angle += diff * 0.08;
 
-  // Move
-  const newHead = {
-    x: head.x + Math.cos(ai.angle) * ai.speed,
-    y: head.y + Math.sin(ai.angle) * ai.speed
-  };
+  // Move (sub-step to maintain consistent segment spacing)
+  const stepDist = 2;
+  const aiSteps = Math.max(1, Math.round(ai.speed / stepDist));
+  let aiLastHead = null;
+  for (let s = 0; s < aiSteps; s++) {
+    const base = ai.body[0];
+    const newHead = {
+      x: base.x + Math.cos(ai.angle) * stepDist,
+      y: base.y + Math.sin(ai.angle) * stepDist
+    };
+    aiLastHead = newHead;
 
-  // Wrap
-  if (newHead.x < 0) newHead.x += WORLD_W;
-  if (newHead.x > WORLD_W) newHead.x -= WORLD_W;
-  if (newHead.y < 0) newHead.y += WORLD_H;
-  if (newHead.y > WORLD_H) newHead.y -= WORLD_H;
+    // Wrap
+    if (newHead.x < 0) newHead.x += WORLD_W;
+    if (newHead.x > WORLD_W) newHead.x -= WORLD_W;
+    if (newHead.y < 0) newHead.y += WORLD_H;
+    if (newHead.y > WORLD_H) newHead.y -= WORLD_H;
 
-  // Self collision for AI
-  for (let i = 5; i < ai.body.length; i++) {
-    const dx = newHead.x - ai.body[i].x, dy = newHead.y - ai.body[i].y;
-    if (dx * dx + dy * dy < 8 * 8) return true; // AI dies
-  }
+    // Self collision for AI (only check last step)
+    if (s === aiSteps - 1) {
+      for (let i = 5; i < ai.body.length; i++) {
+        const dx = newHead.x - ai.body[i].x, dy = newHead.y - ai.body[i].y;
+        if (dx * dx + dy * dy < 8 * 8) return true; // AI dies
+      }
+    }
 
-  ai.body.unshift(newHead);
+    ai.body.unshift(newHead);
 
-  // Eat food
-  for (let i = foods.length - 1; i >= 0; i--) {
-    const f = foods[i];
-    const dx = newHead.x - f.x, dy = newHead.y - f.y;
-    if (dx * dx + dy * dy < (6 + f.r) * (6 + f.r)) {
-      foods.splice(i, 1);
-      spawnFood();
-      ai.score++;
-      break; // AI eats one food per tick max
+    // Eat food (at most 1 per sub-step)
+    for (let i = foods.length - 1; i >= 0; i--) {
+      const f = foods[i];
+      const dx = newHead.x - f.x, dy = newHead.y - f.y;
+      if (dx * dx + dy * dy < (6 + f.r) * (6 + f.r)) {
+        foods.splice(i, 1);
+        spawnFood();
+        ai.score++;
+        break;
+      }
     }
   }
 
@@ -389,43 +398,52 @@ function update() {
   while (diff < -Math.PI) diff += Math.PI * 2;
   angle += diff * 0.1;
 
-  const currentSpeed = boosting ? speed * 1.5 : speed;
-  const newHead = {
-    x: head.x + Math.cos(angle) * currentSpeed,
-    y: head.y + Math.sin(angle) * currentSpeed
-  };
+  const currentSpeed = speed;
+  const steps = boosting ? 2 : 1;
+  let lastHeadPos = null;
+  for (let step = 0; step < steps; step++) {
+    const lastHead = snake[0];
+    const newHead = {
+      x: lastHead.x + Math.cos(angle) * currentSpeed,
+      y: lastHead.y + Math.sin(angle) * currentSpeed
+    };
+    lastHeadPos = newHead;
 
-  if (newHead.x < 0) newHead.x += WORLD_W;
-  if (newHead.x > WORLD_W) newHead.x -= WORLD_W;
-  if (newHead.y < 0) newHead.y += WORLD_H;
-  if (newHead.y > WORLD_H) newHead.y -= WORLD_H;
+    if (newHead.x < 0) newHead.x += WORLD_W;
+    if (newHead.x > WORLD_W) newHead.x -= WORLD_W;
+    if (newHead.y < 0) newHead.y += WORLD_H;
+    if (newHead.y > WORLD_H) newHead.y -= WORLD_H;
 
-  // Self collision
-  for (let i = 5; i < snake.length; i++) {
-    const dx = newHead.x - snake[i].x, dy = newHead.y - snake[i].y;
-    if (dx * dx + dy * dy < (8 * sizeScale) ** 2) {
-      gameOver = true;
-      addScore(score);
-      return;
+    // Self collision (only check last step)
+    if (step === steps - 1) {
+      for (let i = 5; i < snake.length; i++) {
+        const dx = newHead.x - snake[i].x, dy = newHead.y - snake[i].y;
+        if (dx * dx + dy * dy < (8 * sizeScale) ** 2) {
+          gameOver = true;
+          addScore(score);
+          return;
+        }
+      }
+    }
+
+    snake.unshift(newHead);
+
+    // Food check (eat at most 1 per step)
+    for (let i = foods.length - 1; i >= 0; i--) {
+      const f = foods[i];
+      const dx = newHead.x - f.x, dy = newHead.y - f.y;
+      if (dx * dx + dy * dy < (6 + f.r) * (6 + f.r)) {
+        foods.splice(i, 1);
+        spawnFood();
+        score++;
+        break;
+      }
     }
   }
 
-  snake.unshift(newHead);
-
-  // Food check
-  for (let i = foods.length - 1; i >= 0; i--) {
-    const f = foods[i];
-    const dx = newHead.x - f.x, dy = newHead.y - f.y;
-    if (dx * dx + dy * dy < (6 + f.r) * (6 + f.r)) {
-      foods.splice(i, 1);
-      spawnFood();
-      score++;
-    }
-  }
-
-  // Normal: eat food → grow. Boosting: length stays constant
+  // Maintain length: boost = constant, normal = grow on eat
   if (boosting) {
-    snake.pop(); // always remove tail when boosting
+    for (let i = 0; i < steps; i++) snake.pop();
   } else {
     while (snake.length > score) snake.pop();
   }
@@ -445,8 +463,8 @@ function update() {
   // Respawn dead AI if too few
   while (aiSnakes.length < 5) spawnAiSnake();
 
-  camera.x += (newHead.x - W/2 - camera.x) * 0.1;
-  camera.y += (newHead.y - H/2 - camera.y) * 0.1;
+  camera.x += (lastHeadPos.x - W/2 - camera.x) * 0.1;
+  camera.y += (lastHeadPos.y - H/2 - camera.y) * 0.1;
 
   renderLeaderboard();
 }
