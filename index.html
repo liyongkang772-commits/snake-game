@@ -423,7 +423,7 @@ function update() {
     }
   }
 
-  while (snake.length > score) snake.pop();
+  snake.pop(); // maintain constant length
 
   // Update AI
   for (let i = aiSnakes.length - 1; i >= 0; i--) {
@@ -527,43 +527,43 @@ function draw() {
 
   // Player snake body
   const sizeScale = 1 + (score - INIT_SCORE) * 0.02;
+  const segR = 6 * sizeScale;
   for (let i = snake.length - 1; i >= 0; i--) {
     const seg = snake[i];
     const sx2 = seg.x - camera.x, sy2 = seg.y - camera.y;
     if (sx2 < -20 || sx2 > W + 20 || sy2 < -20 || sy2 > H + 20) continue;
-    const ratio = 1 - i / snake.length;
-    const radius = (5 + ratio * 4) * sizeScale;
-    const hue = 140 + ratio * 50;
-    ctx.fillStyle = `hsl(${hue}, 80%, ${45 + ratio * 20}%)`;
+    const hue = 140;
+    ctx.fillStyle = `hsl(${hue}, 80%, 55%)`;
     ctx.shadowColor = `hsla(${hue}, 80%, 50%, 0.15)`;
     ctx.shadowBlur = 6;
-    ctx.beginPath(); ctx.arc(sx2, sy2, radius, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx2, sy2, segR, 0, Math.PI * 2); ctx.fill();
   }
 
   // Player head
   const head = snake[0];
   if (head) {
     const hx = head.x - camera.x, hy = head.y - camera.y;
-    const headR = 9 * sizeScale;
     ctx.shadowColor = 'rgba(0,210,255,0.5)'; ctx.shadowBlur = 20;
     ctx.fillStyle = '#00d2ff';
-    ctx.beginPath(); ctx.arc(hx, hy, headR, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(hx, hy, segR, 0, Math.PI * 2); ctx.fill();
 
     ctx.shadowBlur = 0;
-    const perpX = Math.cos(angle + Math.PI/2) * (4.5 * sizeScale);
-    const perpY = Math.sin(angle + Math.PI/2) * (4.5 * sizeScale);
-    const fwdX = Math.cos(angle) * (3.5 * sizeScale);
-    const fwdY = Math.sin(angle) * (3.5 * sizeScale);
+    const perpX = Math.cos(angle + Math.PI/2) * (3.5 * sizeScale);
+    const perpY = Math.sin(angle + Math.PI/2) * (3.5 * sizeScale);
+    const fwdX = Math.cos(angle) * (2.5 * sizeScale);
+    const fwdY = Math.sin(angle) * (2.5 * sizeScale);
+    const eyeR = 2 * sizeScale;
 
     ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.arc(hx + fwdX + perpX, hy + fwdY + perpY, 2.8 * sizeScale, 0, Math.PI*2);
-    ctx.arc(hx + fwdX - perpX, hy + fwdY - perpY, 2.8 * sizeScale, 0, Math.PI*2);
+    ctx.arc(hx + fwdX + perpX, hy + fwdY + perpY, eyeR, 0, Math.PI*2);
+    ctx.arc(hx + fwdX - perpX, hy + fwdY - perpY, eyeR, 0, Math.PI*2);
     ctx.fill();
     ctx.fillStyle = '#111';
+    const pupilR = 0.9 * sizeScale;
     ctx.beginPath();
-    ctx.arc(hx + fwdX + perpX + Math.cos(angle) * (1.2*sizeScale), hy + fwdY + perpY + Math.sin(angle) * (1.2*sizeScale), 1.3*sizeScale, 0, Math.PI*2);
-    ctx.arc(hx + fwdX - perpX + Math.cos(angle) * (1.2*sizeScale), hy + fwdY - perpY + Math.sin(angle) * (1.2*sizeScale), 1.3*sizeScale, 0, Math.PI*2);
+    ctx.arc(hx + fwdX + perpX + Math.cos(angle) * eyeR * 0.5, hy + fwdY + perpY + Math.sin(angle) * eyeR * 0.5, pupilR, 0, Math.PI*2);
+    ctx.arc(hx + fwdX - perpX + Math.cos(angle) * eyeR * 0.5, hy + fwdY - perpY + Math.sin(angle) * eyeR * 0.5, pupilR, 0, Math.PI*2);
     ctx.fill();
   }
   ctx.shadowBlur = 0;
