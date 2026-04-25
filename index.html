@@ -2,101 +2,94 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>贪吃蛇大作战</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: #1a1a2e;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    font-family: 'Segoe UI', system-ui, sans-serif;
+  html, body {
+    width: 100%; height: 100%;
     overflow: hidden;
-    touch-action: none;
+    background: #0a0a1a;
+    font-family: 'Segoe UI', system-ui, sans-serif;
   }
-  .game-wrapper {
-    background: #16213e;
-    padding: 20px 30px 30px;
-    border-radius: 20px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-    text-align: center;
+  canvas {
+    display: block;
+    cursor: none;
   }
-  h1 {
-    color: #00d2ff;
-    font-size: 24px;
-    margin-bottom: 6px;
-    letter-spacing: 4px;
-    text-shadow: 0 0 20px rgba(0,210,255,0.3);
-  }
-  .header {
+
+  /* HUD overlay */
+  #hud {
+    position: fixed;
+    top: 0; left: 0; right: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
-    color: #eee;
-    font-size: 16px;
+    padding: 16px 24px;
+    pointer-events: none;
+    z-index: 10;
   }
-  .header span { color: #00d2ff; font-weight: bold; font-size: 20px; }
-  canvas {
-    display: block;
-    margin: 0 auto;
-    border-radius: 12px;
-    background: #0f3460;
-    box-shadow: inset 0 0 30px rgba(0,0,0,0.4);
-    cursor: none;
-    width: 100%;
-    max-width: 600px;
-    height: auto;
-    aspect-ratio: 1;
-  }
-  .controls {
-    margin-top: 12px;
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-  button {
-    background: linear-gradient(135deg, #00d2ff, #3a7bd5);
-    border: none;
+  #hud > div {
+    pointer-events: auto;
     color: #fff;
-    padding: 8px 24px;
+    font-size: 18px;
+    font-weight: 600;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    padding: 8px 18px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  #hud span { color: #00d2ff; }
+
+  #controls {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+    z-index: 10;
+    pointer-events: none;
+  }
+  #controls button {
+    pointer-events: auto;
+    background: rgba(0,210,255,0.15);
+    border: 1px solid rgba(0,210,255,0.3);
+    color: #fff;
+    padding: 8px 22px;
     border-radius: 8px;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: background 0.2s;
+    backdrop-filter: blur(4px);
   }
-  button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,210,255,0.4); }
-  button:active { transform: translateY(0); }
-  .hint {
-    color: #888;
+  #controls button:hover { background: rgba(0,210,255,0.3); }
+
+  #hint {
+    position: fixed;
+    bottom: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.3);
     font-size: 13px;
-    margin-top: 8px;
-  }
-  @media (max-width: 520px) {
-    .game-wrapper { padding: 10px; border-radius: 12px; }
-    h1 { font-size: 18px; }
-    .header { font-size: 14px; }
+    z-index: 10;
+    pointer-events: none;
+    transition: opacity 1s;
   }
 </style>
 </head>
 <body>
-<div class="game-wrapper">
-  <h1>🐍 贪吃蛇大作战</h1>
-  <div class="header">
-    <div>长度: <span id="score">1</span></div>
-    <div>最长: <span id="highScore">1</span></div>
-  </div>
-  <canvas id="game" width="600" height="600"></canvas>
-  <div class="controls">
-    <button id="restartBtn">重新开始</button>
-    <button id="pauseBtn">暂停</button>
-  </div>
-  <div class="hint">🖱 鼠标控制方向 · 吃掉食物变长 · 别撞到自己</div>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div>长度: <span id="score">1</span></div>
+  <div>最高: <span id="highScore">1</span></div>
 </div>
+<div id="controls">
+  <button id="restartBtn">重新开始</button>
+  <button id="pauseBtn">暂停</button>
+</div>
+<div id="hint">🖱 移动鼠标控制方向 · 空格暂停</div>
 
 <script>
 const canvas = document.getElementById('game');
@@ -104,28 +97,31 @@ const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('score');
 const highScoreEl = document.getElementById('highScore');
 
-// High score
-let highScore = parseInt(localStorage.getItem('snakeBattleHigh') || '1');
-highScoreEl.textContent = highScore;
-
 // === Config ===
-const W = 600, H = 600;
-const WORLD_W = 1200, WORLD_H = 1200;
+const WORLD_W = 1600, WORLD_H = 1600;
+let W, H;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
 
 // === State ===
-let snake, foods, mouseX, mouseY, score, gameOver, paused;
+let snake, foods, mouseX, mouseY, score, highScore, gameOver, paused;
 let angle, speed;
 let camera;
 
+let hintTimer;
+
 function init() {
   angle = Math.random() * Math.PI * 2;
-  speed = 2.5;
-  score = 1;
+  speed = 2.8;
   gameOver = false;
   paused = false;
   document.getElementById('pauseBtn').textContent = '暂停';
 
-  // Snake: start at center of world
   const sx = WORLD_W / 2, sy = WORLD_H / 2;
   snake = [];
   for (let i = 0; i < 10; i++) {
@@ -133,21 +129,25 @@ function init() {
   }
   score = 10;
 
-  // Mouse: point in movement direction initially
-  mouseX = sx + Math.cos(angle) * 100;
-  mouseY = sy + Math.sin(angle) * 100;
+  mouseX = W / 2;
+  mouseY = H / 2;
 
-  // Camera: center on snake
   camera = { x: sx - W/2, y: sy - H/2 };
 
-  // Spawn food
   foods = [];
-  for (let i = 0; i < 60; i++) {
-    spawnFood();
-  }
+  for (let i = 0; i < 80; i++) spawnFood();
 
   scoreEl.textContent = score;
+
+  // Hint fade
+  clearTimeout(hintTimer);
+  const hint = document.getElementById('hint');
+  hint.style.opacity = '1';
+  hintTimer = setTimeout(() => hint.style.opacity = '0', 4000);
 }
+
+highScore = parseInt(localStorage.getItem('snakeBattleHigh') || '1');
+highScoreEl.textContent = highScore;
 
 function spawnFood() {
   foods.push({
@@ -162,31 +162,27 @@ function update() {
   if (paused || gameOver) return;
 
   const head = snake[0];
-
-  // Calculate direction toward mouse
   const worldMouseX = mouseX + camera.x;
   const worldMouseY = mouseY + camera.y;
   const targetAngle = Math.atan2(worldMouseY - head.y, worldMouseX - head.x);
 
-  // Smoothly turn toward mouse
   let diff = targetAngle - angle;
   while (diff > Math.PI) diff -= Math.PI * 2;
   while (diff < -Math.PI) diff += Math.PI * 2;
-  angle += diff * 0.12;
+  angle += diff * 0.1;
 
-  // Move head
   const newHead = {
     x: head.x + Math.cos(angle) * speed,
     y: head.y + Math.sin(angle) * speed
   };
 
-  // Wrap world
+  // World wrap
   if (newHead.x < 0) newHead.x += WORLD_W;
   if (newHead.x > WORLD_W) newHead.x -= WORLD_W;
   if (newHead.y < 0) newHead.y += WORLD_H;
   if (newHead.y > WORLD_H) newHead.y -= WORLD_H;
 
-  // Self-collision: check against body segments (skip first few near head)
+  // Self collision
   for (let i = 5; i < snake.length; i++) {
     const dx = newHead.x - snake[i].x;
     const dy = newHead.y - snake[i].y;
@@ -203,7 +199,7 @@ function update() {
 
   snake.unshift(newHead);
 
-  // Check food
+  // Food check
   for (let i = foods.length - 1; i >= 0; i--) {
     const f = foods[i];
     const dx = newHead.x - f.x;
@@ -213,16 +209,11 @@ function update() {
       spawnFood();
       score++;
       scoreEl.textContent = score;
-      // Don't remove tail = grow
     }
   }
 
-  // Maintain length = remove tail unless we ate
-  while (snake.length > score) {
-    snake.pop();
-  }
+  while (snake.length > score) snake.pop();
 
-  // Camera: follow head smoothly
   camera.x += (newHead.x - W/2 - camera.x) * 0.1;
   camera.y += (newHead.y - H/2 - camera.y) * 0.1;
 }
@@ -230,69 +221,52 @@ function update() {
 function draw() {
   ctx.clearRect(0, 0, W, H);
 
-  // Grid (world space)
-  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
   ctx.lineWidth = 0.5;
-  const gridSize = 60;
-  const startX = -(camera.x % gridSize);
-  const startY = -(camera.y % gridSize);
-  for (let x = startX; x < W; x += gridSize) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-  }
-  for (let y = startY; y < H; y += gridSize) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-  }
+  const gs = 60;
+  const sx = -(camera.x % gs);
+  const sy = -(camera.y % gs);
+  for (let x = sx; x < W; x += gs) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = sy; y < H; y += gs) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
 
   // World boundary
-  ctx.strokeStyle = 'rgba(255, 50, 50, 0.3)';
+  ctx.strokeStyle = 'rgba(255, 50, 50, 0.25)';
   ctx.lineWidth = 2;
-  ctx.setLineDash([6, 6]);
+  ctx.setLineDash([8, 8]);
   ctx.strokeRect(-camera.x, -camera.y, WORLD_W, WORLD_H);
   ctx.setLineDash([]);
 
   // Food
   for (const f of foods) {
-    const sx = f.x - camera.x;
-    const sy = f.y - camera.y;
-    if (sx < -20 || sx > W + 20 || sy < -20 || sy > H + 20) continue;
-    ctx.shadowColor = 'rgba(255, 100, 100, 0.3)';
-    ctx.shadowBlur = 8;
+    const fx = f.x - camera.x;
+    const fy = f.y - camera.y;
+    if (fx < -20 || fx > W + 20 || fy < -20 || fy > H + 20) continue;
+    ctx.shadowColor = f.color;
+    ctx.shadowBlur = 10;
     ctx.fillStyle = f.color;
     ctx.beginPath();
-    ctx.arc(sx, sy, f.r, 0, Math.PI * 2);
+    ctx.arc(fx, fy, f.r, 0, Math.PI * 2);
     ctx.fill();
-
-    // Glow
-    ctx.shadowBlur = 12;
-    ctx.globalAlpha = 0.3;
-    ctx.beginPath();
-    ctx.arc(sx, sy, f.r * 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
   }
   ctx.shadowBlur = 0;
 
   // Snake body
-  if (snake.length > 1) {
-    // Draw body segments as connected circles
-    for (let i = snake.length - 1; i >= 1; i--) {
-      const seg = snake[i];
-      const sx = seg.x - camera.x;
-      const sy = seg.y - camera.y;
-      if (sx < -20 || sx > W + 20 || sy < -20 || sy > H + 20) continue;
+  for (let i = snake.length - 1; i >= 0; i--) {
+    const seg = snake[i];
+    const sx2 = seg.x - camera.x;
+    const sy2 = seg.y - camera.y;
+    if (sx2 < -20 || sx2 > W + 20 || sy2 < -20 || sy2 > H + 20) continue;
 
-      const ratio = 1 - i / snake.length;
-      const radius = 5 + ratio * 3;
-      const hue = 140 + ratio * 50;
-      const lightness = 45 + ratio * 20;
-
-      ctx.shadowColor = `hsla(${hue}, 80%, 50%, 0.2)`;
-      ctx.shadowBlur = 6;
-      ctx.fillStyle = `hsl(${hue}, 80%, ${lightness}%)`;
-      ctx.beginPath();
-      ctx.arc(sx, sy, radius, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    const ratio = 1 - i / snake.length;
+    const radius = 5 + ratio * 4;
+    const hue = 140 + ratio * 50;
+    ctx.fillStyle = `hsl(${hue}, 80%, ${45 + ratio * 20}%)`;
+    ctx.shadowColor = `hsla(${hue}, 80%, 50%, 0.15)`;
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.arc(sx2, sy2, radius, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   // Head
@@ -300,109 +274,77 @@ function draw() {
   if (head) {
     const hx = head.x - camera.x;
     const hy = head.y - camera.y;
-    ctx.shadowColor = 'rgba(0, 210, 255, 0.4)';
-    ctx.shadowBlur = 15;
+    ctx.shadowColor = 'rgba(0, 210, 255, 0.5)';
+    ctx.shadowBlur = 20;
     ctx.fillStyle = '#00d2ff';
     ctx.beginPath();
-    ctx.arc(hx, hy, 8, 0, Math.PI * 2);
+    ctx.arc(hx, hy, 9, 0, Math.PI * 2);
     ctx.fill();
 
-    // Eyes
     ctx.shadowBlur = 0;
+    const perpX = Math.cos(angle + Math.PI / 2) * 4.5;
+    const perpY = Math.sin(angle + Math.PI / 2) * 4.5;
+    const fwdX = Math.cos(angle) * 3.5;
+    const fwdY = Math.sin(angle) * 3.5;
+
     ctx.fillStyle = '#fff';
-    const eyeOff = 4;
-    const perpX = Math.cos(angle + Math.PI / 2) * eyeOff;
-    const perpY = Math.sin(angle + Math.PI / 2) * eyeOff;
-    const fwdX = Math.cos(angle) * 3;
-    const fwdY = Math.sin(angle) * 3;
     ctx.beginPath();
-    ctx.arc(hx + fwdX + perpX, hy + fwdY + perpY, 2.5, 0, Math.PI * 2);
-    ctx.arc(hx + fwdX - perpX, hy + fwdY - perpY, 2.5, 0, Math.PI * 2);
+    ctx.arc(hx + fwdX + perpX, hy + fwdY + perpY, 2.8, 0, Math.PI * 2);
+    ctx.arc(hx + fwdX - perpX, hy + fwdY - perpY, 2.8, 0, Math.PI * 2);
     ctx.fill();
 
-    // Pupils
     ctx.fillStyle = '#111';
     ctx.beginPath();
-    ctx.arc(hx + fwdX + perpX + Math.cos(angle) * 1, hy + fwdY + perpY + Math.sin(angle) * 1, 1.2, 0, Math.PI * 2);
-    ctx.arc(hx + fwdX - perpX + Math.cos(angle) * 1, hy + fwdY - perpY + Math.sin(angle) * 1, 1.2, 0, Math.PI * 2);
+    ctx.arc(hx + fwdX + perpX + Math.cos(angle) * 1.2, hy + fwdY + perpY + Math.sin(angle) * 1.2, 1.3, 0, Math.PI * 2);
+    ctx.arc(hx + fwdX - perpX + Math.cos(angle) * 1.2, hy + fwdY - perpY + Math.sin(angle) * 1.2, 1.3, 0, Math.PI * 2);
     ctx.fill();
   }
 
   ctx.shadowBlur = 0;
 
-  // Overlay messages
+  // Overlay
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
   if (gameOver) {
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#ff4757';
-    ctx.font = 'bold 42px system-ui';
-    ctx.fillText('💀 游戏结束', W / 2, H / 2 - 20);
+    ctx.font = `bold ${Math.min(W, H) * 0.07}px system-ui`;
+    ctx.fillText('💀 游戏结束', W / 2, H / 2 - 30);
     ctx.fillStyle = '#ccc';
-    ctx.font = '20px system-ui';
-    ctx.fillText(`长度: ${score}`, W / 2, H / 2 + 35);
+    ctx.font = `${Math.min(W, H) * 0.03}px system-ui`;
+    ctx.fillText(`长度: ${score}`, W / 2, H / 2 + 30);
   } else if (paused) {
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 36px system-ui';
+    ctx.font = `bold ${Math.min(W, H) * 0.06}px system-ui`;
     ctx.fillText('⏸ 暂停', W / 2, H / 2);
   }
 }
 
-// === Mouse / Touch control ===
-function handlePointer(e) {
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
-  let clientX, clientY;
-  if (e.touches) {
-    const t = e.touches[0];
-    clientX = t.clientX;
-    clientY = t.clientY;
-  } else {
-    clientX = e.clientX;
-    clientY = e.clientY;
-  }
-  mouseX = (clientX - rect.left) * scaleX;
-  mouseY = (clientY - rect.top) * scaleY;
-}
-
-canvas.addEventListener('mousemove', handlePointer);
-canvas.addEventListener('touchmove', e => { e.preventDefault(); handlePointer(e); }, { passive: false });
-canvas.addEventListener('touchstart', e => { e.preventDefault(); handlePointer(e); }, { passive: false });
-
-// Keyboard fallback for debugging
-document.addEventListener('keydown', e => {
-  const step = 10;
-  switch (e.key) {
-    case 'ArrowUp': mouseY = Math.max(0, mouseY - step); break;
-    case 'ArrowDown': mouseY = Math.min(H, mouseY + step); break;
-    case 'ArrowLeft': mouseX = Math.max(0, mouseX - step); break;
-    case 'ArrowRight': mouseX = Math.min(W, mouseX + step); break;
-  }
+// === Controls ===
+canvas.addEventListener('mousemove', e => {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
 });
 
-// Space to pause
 document.addEventListener('keydown', e => {
   if (e.key === ' ' || e.key === 'Escape') {
     e.preventDefault();
-    togglePause();
+    if (gameOver) return;
+    paused = !paused;
+    document.getElementById('pauseBtn').textContent = paused ? '继续' : '暂停';
   }
 });
 
-function togglePause() {
+document.getElementById('restartBtn').addEventListener('click', init);
+document.getElementById('pauseBtn').addEventListener('click', () => {
   if (gameOver) return;
   paused = !paused;
   document.getElementById('pauseBtn').textContent = paused ? '继续' : '暂停';
-}
-
-document.getElementById('restartBtn').addEventListener('click', () => {
-  init();
 });
-document.getElementById('pauseBtn').addEventListener('click', togglePause);
 
 // === Game loop ===
 init();
@@ -410,11 +352,7 @@ init();
 let lastTime = 0;
 function gameLoop(time) {
   const dt = time - lastTime;
-  if (dt > 16) {
-    update();
-    draw();
-    lastTime = time;
-  }
+  if (dt > 16) { update(); draw(); lastTime = time; }
   requestAnimationFrame(gameLoop);
 }
 requestAnimationFrame(gameLoop);
