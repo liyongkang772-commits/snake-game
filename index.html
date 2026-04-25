@@ -161,6 +161,8 @@ function spawnFood() {
 function update() {
   if (paused || gameOver) return;
 
+  const sizeScale = 1 + (score - 10) * 0.02;
+
   const head = snake[0];
   const worldMouseX = mouseX + camera.x;
   const worldMouseY = mouseY + camera.y;
@@ -171,7 +173,7 @@ function update() {
   while (diff < -Math.PI) diff += Math.PI * 2;
   angle += diff * 0.1;
 
-  const currentSpeed = boosting ? speed * 2.2 : speed;
+  const currentSpeed = boosting ? speed * 1.5 : speed;
   const newHead = {
     x: head.x + Math.cos(angle) * currentSpeed,
     y: head.y + Math.sin(angle) * currentSpeed
@@ -183,11 +185,13 @@ function update() {
   if (newHead.y < 0) newHead.y += WORLD_H;
   if (newHead.y > WORLD_H) newHead.y -= WORLD_H;
 
-  // Self collision
+  // Self collision (scale with body size)
+  const sizeScale = 1 + (score - 10) * 0.02;
+  const collisionR = 8 * sizeScale;
   for (let i = 5; i < snake.length; i++) {
     const dx = newHead.x - snake[i].x;
     const dy = newHead.y - snake[i].y;
-    if (dx * dx + dy * dy < 8 * 8) {
+    if (dx * dx + dy * dy < collisionR * collisionR) {
       gameOver = true;
       if (score > highScore) {
         highScore = score;
@@ -252,6 +256,8 @@ function draw() {
   }
   ctx.shadowBlur = 0;
 
+  // Body size grows with score
+  const sizeScale = 1 + (score - 10) * 0.02;
   // Snake body
   for (let i = snake.length - 1; i >= 0; i--) {
     const seg = snake[i];
@@ -260,7 +266,7 @@ function draw() {
     if (sx2 < -20 || sx2 > W + 20 || sy2 < -20 || sy2 > H + 20) continue;
 
     const ratio = 1 - i / snake.length;
-    const radius = 5 + ratio * 4;
+    const radius = (5 + ratio * 4) * sizeScale;
     const hue = 140 + ratio * 50;
     ctx.fillStyle = `hsl(${hue}, 80%, ${45 + ratio * 20}%)`;
     ctx.shadowColor = `hsla(${hue}, 80%, 50%, 0.15)`;
@@ -275,29 +281,30 @@ function draw() {
   if (head) {
     const hx = head.x - camera.x;
     const hy = head.y - camera.y;
+    const headR = 9 * sizeScale;
     ctx.shadowColor = 'rgba(0, 210, 255, 0.5)';
     ctx.shadowBlur = 20;
     ctx.fillStyle = '#00d2ff';
     ctx.beginPath();
-    ctx.arc(hx, hy, 9, 0, Math.PI * 2);
+    ctx.arc(hx, hy, headR, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.shadowBlur = 0;
-    const perpX = Math.cos(angle + Math.PI / 2) * 4.5;
-    const perpY = Math.sin(angle + Math.PI / 2) * 4.5;
-    const fwdX = Math.cos(angle) * 3.5;
-    const fwdY = Math.sin(angle) * 3.5;
+    const perpX = Math.cos(angle + Math.PI / 2) * (4.5 * sizeScale);
+    const perpY = Math.sin(angle + Math.PI / 2) * (4.5 * sizeScale);
+    const fwdX = Math.cos(angle) * (3.5 * sizeScale);
+    const fwdY = Math.sin(angle) * (3.5 * sizeScale);
 
     ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.arc(hx + fwdX + perpX, hy + fwdY + perpY, 2.8, 0, Math.PI * 2);
-    ctx.arc(hx + fwdX - perpX, hy + fwdY - perpY, 2.8, 0, Math.PI * 2);
+    ctx.arc(hx + fwdX + perpX, hy + fwdY + perpY, 2.8 * sizeScale, 0, Math.PI * 2);
+    ctx.arc(hx + fwdX - perpX, hy + fwdY - perpY, 2.8 * sizeScale, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = '#111';
     ctx.beginPath();
-    ctx.arc(hx + fwdX + perpX + Math.cos(angle) * 1.2, hy + fwdY + perpY + Math.sin(angle) * 1.2, 1.3, 0, Math.PI * 2);
-    ctx.arc(hx + fwdX - perpX + Math.cos(angle) * 1.2, hy + fwdY - perpY + Math.sin(angle) * 1.2, 1.3, 0, Math.PI * 2);
+    ctx.arc(hx + fwdX + perpX + Math.cos(angle) * (1.2 * sizeScale), hy + fwdY + perpY + Math.sin(angle) * (1.2 * sizeScale), 1.3 * sizeScale, 0, Math.PI * 2);
+    ctx.arc(hx + fwdX - perpX + Math.cos(angle) * (1.2 * sizeScale), hy + fwdY - perpY + Math.sin(angle) * (1.2 * sizeScale), 1.3 * sizeScale, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -347,15 +354,17 @@ function drawBoostFX() {
   if (!boosting || paused || gameOver) return;
   const head = snake[0];
   if (!head) return;
+  const sz = 1 + (score - 10) * 0.02;
   const hx = head.x - camera.x;
   const hy = head.y - camera.y;
   ctx.shadowBlur = 0;
   for (let i = 3; i > 0; i--) {
-    const bx = hx - Math.cos(angle) * i * 10;
-    const by = hy - Math.sin(angle) * i * 10;
+    const bx = hx - Math.cos(angle) * i * 10 * sz;
+    const by = hy - Math.sin(angle) * i * 10 * sz;
+    const r = (5 - i) * sz;
     ctx.fillStyle = `rgba(0, 210, 255, ${0.15 - i * 0.04})`;
     ctx.beginPath();
-    ctx.arc(bx, by, 5 - i, 0, Math.PI * 2);
+    ctx.arc(bx, by, r, 0, Math.PI * 2);
     ctx.fill();
   }
 }
